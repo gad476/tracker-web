@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مسار التأسيس — منصة التسويق والوساطة العقارية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Markazi+Text:wght@500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg: #EEF0EA;
+    --paper: #F7F8F4;
+    --surface: #FFFFFF;
+    --ink: #1C2B28;
+    --ink-soft: #4B5B57;
+    --line: #D9DDD2;
+    --brass: #B08D57;
+    --brass-deep: #8C6D3F;
+    --teal: #2F6F62;
+    --teal-deep: #204F45;
+    --success: #3F7D5C;
+    --success-bg: #E4EFE6;
+    --warn: #A6472F;
+    --warn-bg: #F3E2DC;
+    --progress: #C99A46;
+    --progress-bg: #F2E7CF;
+    --radius-s: 6px;
+    --radius-m: 10px;
+    --radius-l: 16px;
+    --shadow: 0 1px 2px rgba(28,43,40,.06), 0 8px 24px -12px rgba(28,43,40,.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+    line-height:1.6;
+    min-height:100vh;
+  }
+  h1,h2,h3,.display{
+    font-family:'Markazi Text','IBM Plex Sans Arabic',serif;
+    font-weight:600;
+    letter-spacing:.2px;
+  }
+  a{color:inherit;}
+  ::selection{background:var(--brass); color:#fff;}
+
+  .wrap{max-width:1180px; margin:0 auto; padding:28px 24px 80px;}
+
+  /* ---------- Header ---------- */
+  header.top{
+    display:flex; align-items:flex-start; justify-content:space-between; gap:24px;
+    padding-bottom:22px; margin-bottom:26px; border-bottom:1px solid var(--line);
+    flex-wrap:wrap;
+  }
+  .brand-block h1{font-size:2.5rem; margin:0 0 4px; color:var(--teal-deep); line-height:1.15;}
+  .brand-block p{margin:0; color:var(--ink-soft); font-size:.98rem; max-width:46ch;}
+  .top-actions{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .sync-status{
+    font-size:.78rem; color:var(--ink-soft); display:flex; align-items:center; gap:5px; white-space:nowrap;
+  }
+  .sync-status.ok{color:var(--success);}
+  .sync-status.err{color:var(--warn);}
+  .sync-status.saving{color:var(--brass-deep);}
+  .user-pill{
+    display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--line);
+    border-radius:999px; padding:6px 8px 6px 14px; box-shadow:var(--shadow);
+  }
+  .user-pill span.lbl{font-size:.82rem; color:var(--ink-soft); white-space:nowrap;}
+  select{
+    font-family:inherit; border:1px solid var(--line); background:var(--paper); color:var(--ink);
+    border-radius:var(--radius-s); padding:7px 10px; font-size:.9rem; cursor:pointer;
+  }
+  .user-pill select{border:none; background:transparent; font-weight:600; padding:2px 4px;}
+  .avatar{
+    width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:.78rem; font-weight:700; color:#fff; flex-shrink:0;
+  }
+
+  button{
+    font-family:inherit; cursor:pointer; border:none; border-radius:var(--radius-s);
+    font-size:.88rem; padding:9px 16px; font-weight:600; transition:transform .12s ease, box-shadow .12s ease;
+  }
+  button:active{transform:translateY(1px);}
+  .btn-primary{background:var(--teal); color:#fff;}
+  .btn-primary:hover{background:var(--teal-deep);}
+  .btn-ghost{background:transparent; border:1px solid var(--line); color:var(--ink);}
+  .btn-ghost:hover{border-color:var(--ink-soft);}
+  .btn-brass{background:var(--brass); color:#fff;}
+  .btn-brass:hover{background:var(--brass-deep);}
+  .btn-sm{padding:5px 10px; font-size:.78rem; border-radius:var(--radius-s);}
+  .btn-icon{background:transparent; border:none; color:var(--ink-soft); padding:4px 6px; font-size:1rem;}
+  .btn-icon:hover{color:var(--warn);}
+
+  /* ---------- Dashboard ---------- */
+  .dash{
+    display:grid; grid-template-columns:repeat(4, 1fr) 1.3fr; gap:14px; margin-bottom:32px;
+  }
+  .stat-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-l);
+    padding:18px 18px; box-shadow:var(--shadow);
+  }
+  .stat-card .num{font-family:'Markazi Text',serif; font-size:2.6rem; font-weight:700; color:var(--teal-deep); line-height:1;}
+  .stat-card .lbl{color:var(--ink-soft); font-size:.85rem; margin-top:6px;}
+  .stat-card.warn .num{color:var(--warn);}
+  .chart-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-l);
+    padding:14px 16px; box-shadow:var(--shadow); display:flex; align-items:center; gap:14px;
+  }
+  .chart-card canvas{max-width:96px; max-height:96px;}
+  .chart-legend{font-size:.78rem; color:var(--ink-soft); display:flex; flex-direction:column; gap:4px;}
+  .chart-legend .dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-inline-start:6px;}
+
+  /* ---------- Phase timeline ---------- */
+  section.phases{margin-bottom:30px;}
+  .section-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:14px; gap:12px; flex-wrap:wrap;}
+  .section-head h2{font-size:1.6rem; margin:0; color:var(--teal-deep);}
+  .section-head .hint{font-size:.85rem; color:var(--ink-soft);}
+
+  .timeline{display:flex; gap:10px; overflow-x:auto; padding-bottom:10px; scrollbar-width:thin;}
+  .phase-chip{
+    flex:0 0 auto; min-width:168px; background:var(--surface); border:1px solid var(--line);
+    border-radius:var(--radius-m); padding:12px 14px; cursor:pointer; position:relative;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .phase-chip:hover{border-color:var(--brass);}
+  .phase-chip.active{border-color:var(--teal); box-shadow:0 0 0 2px rgba(47,111,98,.18);}
+  .phase-chip .idx{
+    font-family:'Markazi Text',serif; font-weight:700; font-size:1.1rem; color:var(--brass-deep);
+  }
+  .phase-chip .name{font-size:.86rem; font-weight:600; margin:3px 0 8px; color:var(--ink);}
+  .phase-bar{height:5px; border-radius:3px; background:var(--line); overflow:hidden;}
+  .phase-bar > i{display:block; height:100%; background:var(--teal); border-radius:3px;}
+  .phase-chip .pct{font-size:.72rem; color:var(--ink-soft); margin-top:5px; display:block;}
+
+  /* ---------- Task table ---------- */
+  .task-toolbar{display:flex; justify-content:space-between; align-items:center; margin:22px 0 12px; gap:10px; flex-wrap:wrap;}
+  .task-toolbar h3{margin:0; font-size:1.25rem; color:var(--ink);}
+  .task-list{display:flex; flex-direction:column; gap:10px;}
+  .task-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-m);
+    padding:14px 16px; display:grid; grid-template-columns:1fr auto; gap:10px; box-shadow:var(--shadow);
+  }
+  .task-main{display:flex; flex-direction:column; gap:6px; min-width:0;}
+  .task-title-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .task-title{font-weight:700; font-size:1rem;}
+  .badge{
+    font-size:.72rem; font-weight:600; padding:3px 10px; border-radius:999px; white-space:nowrap;
+  }
+  .badge.not_started{background:#E7E6E0; color:#5b5b52;}
+  .badge.in_progress{background:var(--progress-bg); color:#8a611c;}
+  .badge.done{background:var(--success-bg); color:var(--success);}
+  .badge.late{background:var(--warn-bg); color:var(--warn);}
+  .task-desc{color:var(--ink-soft); font-size:.88rem; max-width:70ch;}
+  .task-meta{display:flex; flex-wrap:wrap; gap:14px; font-size:.78rem; color:var(--ink-soft); margin-top:2px;}
+  .task-meta b{color:var(--ink); font-weight:600;}
+  .task-meta .assignee{display:flex; align-items:center; gap:6px;}
+  .task-actions{display:flex; flex-direction:column; gap:6px; align-items:flex-end; justify-content:space-between;}
+  .task-actions .row{display:flex; gap:6px;}
+  .empty-state{
+    border:1px dashed var(--line); border-radius:var(--radius-m); padding:34px; text-align:center;
+    color:var(--ink-soft); font-size:.92rem; background:var(--paper);
+  }
+
+  /* ---------- Team ---------- */
+  section.team{margin-bottom:36px;}
+  .team-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(210px,1fr)); gap:14px;}
+  .member-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-m);
+    padding:14px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:8px;
+  }
+  .member-top{display:flex; align-items:center; gap:10px;}
+  .member-top .avatar{width:38px; height:38px; font-size:.95rem;}
+  .member-name{font-weight:700; font-size:.95rem;}
+  .member-role{font-size:.76rem; color:var(--ink-soft);}
+  .member-stats{display:flex; justify-content:space-between; font-size:.78rem; color:var(--ink-soft); border-top:1px solid var(--line); padding-top:8px;}
+  .member-stats b{display:block; color:var(--ink); font-size:.95rem;}
+
+  /* ---------- Modal ---------- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(20,28,26,.45); display:none; align-items:flex-start;
+    justify-content:center; padding:40px 16px; z-index:50; overflow-y:auto;
+  }
+  .overlay.open{display:flex;}
+  .modal{
+    background:var(--surface); border-radius:var(--radius-l); padding:26px 26px 22px; width:100%;
+    max-width:560px; box-shadow:0 20px 60px -20px rgba(0,0,0,.4); margin-top:10px;
+  }
+  .modal h3{margin:0 0 4px; font-size:1.4rem; color:var(--teal-deep);}
+  .modal .sub{color:var(--ink-soft); font-size:.85rem; margin-bottom:18px;}
+  .field{display:flex; flex-direction:column; gap:6px; margin-bottom:14px;}
+  .field label{font-size:.82rem; font-weight:600; color:var(--ink);}
+  .field input[type=text], .field input[type=date], .field textarea, .field select{
+    font-family:inherit; border:1px solid var(--line); border-radius:var(--radius-s);
+    padding:9px 11px; font-size:.9rem; background:var(--paper); color:var(--ink);
+  }
+  .field textarea{resize:vertical; min-height:60px;}
+  .field-row{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .modal-actions{display:flex; justify-content:flex-start; gap:10px; margin-top:6px;}
+  .swatches{display:flex; gap:8px; flex-wrap:wrap;}
+  .swatch{width:26px; height:26px; border-radius:50%; cursor:pointer; border:2px solid transparent;}
+  .swatch.sel{border-color:var(--ink);}
+
+  footer.note{
+    margin-top:40px; padding-top:18px; border-top:1px solid var(--line); font-size:.8rem;
+    color:var(--ink-soft); line-height:1.8;
+  }
+  footer.note code{background:var(--paper); padding:1px 6px; border-radius:4px; font-size:.78rem;}
+
+  @media (max-width: 920px){
+    .dash{grid-template-columns:repeat(2,1fr);}
+    .chart-card{grid-column:span 2;}
+  }
+  @media (max-width: 620px){
+    .dash{grid-template-columns:1fr 1fr;}
+    .task-card{grid-template-columns:1fr;}
+    .task-actions{flex-direction:row; align-items:center;}
+    .field-row{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div class="overlay" id="setupOverlay" style="z-index:100; display:none;">
+  <div class="modal" style="max-width:600px;">
+    <h3>يلزم إعداد قاعدة البيانات المشتركة أولًا</h3>
+    <p class="sub" id="setupMessage">
+      افتح ملف <code>config.js</code> وضع فيه بيانات مشروع Firebase الخاص بكم (خطوات إنشائها موجودة في README.md)، ثم أعد تحميل الصفحة.
+    </p>
+  </div>
+</div>
+
+<div class="overlay" id="connectingOverlay" style="z-index:90; display:flex;">
+  <div class="modal" style="max-width:420px; text-align:center;">
+    <h3 style="margin-bottom:6px;">جارٍ الاتصال بقاعدة البيانات…</h3>
+    <p class="sub">يتم تحميل بيانات الفريق المشتركة للمرة الأولى.</p>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand-block">
+      <h1>مسار التأسيس</h1>
+      <p>خطة تنفيذية تفاعلية لتأسيس وإطلاق منصة التسويق العقاري والوساطة — من الدراسة إلى الإطلاق وما بعده.</p>
+    </div>
+    <div class="top-actions">
+      <span id="syncStatus" class="sync-status">● جارٍ الاتصال…</span>
+      <div class="user-pill">
+        <span class="lbl">أنت الآن:</span>
+        <span id="meAvatar" class="avatar"></span>
+        <select id="currentUserSelect"></select>
+      </div>
+      <button class="btn-ghost btn-sm" id="exportBtn" title="تنزيل نسخة من البيانات لمشاركتها مع الفريق">تصدير البيانات</button>
+      <button class="btn-ghost btn-sm" id="importBtn" title="استيراد نسخة بيانات من عضو آخر">استيراد</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none">
+    </div>
+  </header>
+
+  <!-- Dashboard -->
+  <section class="dash" id="dashboard"></section>
+
+  <!-- Phases -->
+  <section class="phases">
+    <div class="section-head">
+      <h2>مراحل المشروع</h2>
+      <span class="hint">اختر مرحلة لعرض مهامها — أو اترك "كل المراحل" لعرض الجميع</span>
+    </div>
+    <div class="timeline" id="timeline"></div>
+  </section>
+
+  <!-- Tasks -->
+  <section>
+    <div class="task-toolbar">
+      <h3 id="taskListTitle">كل المهام</h3>
+      <button class="btn-primary" id="addTaskBtn">+ إضافة مهمة جديدة</button>
+    </div>
+    <div class="task-list" id="taskList"></div>
+  </section>
+
+  <!-- Team -->
+  <section class="team">
+    <div class="section-head">
+      <h2>فريق العمل</h2>
+      <button class="btn-brass btn-sm" id="addMemberBtn">+ إضافة عضو</button>
+    </div>
+    <div class="team-grid" id="teamGrid"></div>
+  </section>
+
+  <footer class="note">
+    تُحفظ البيانات محليًا في متصفحك (localStorage) — هذا يناسب الاستخدام الفردي أو العرض التجريبي فورًا بعد النشر على GitHub Pages.
+    لمشاركة نفس البيانات بين أعضاء الفريق على أجهزة مختلفة، استخدم زر <code>تصدير البيانات</code> لتنزيل ملف JSON ومشاركته (مثلاً برفعه إلى المستودع)، ثم يستخدم بقية الأعضاء زر <code>استيراد</code> لتحميله.
+    لمزامنة حيّة تلقائية بين الجميع دون تصدير/استيراد يدوي، يلزم ربط الصفحة بقاعدة بيانات خارجية مثل Firebase — راجع ملف README.md في المستودع لخطوات إضافة ذلك لاحقًا.
+  </footer>
+</div>
+
+<!-- Task Modal -->
+<div class="overlay" id="taskOverlay">
+  <div class="modal">
+    <h3 id="taskModalTitle">إضافة مهمة جديدة</h3>
+    <p class="sub">حدد تفاصيل المهمة والمسؤول عن تنفيذها والموعد المستهدف للإنجاز.</p>
+    <form id="taskForm">
+      <input type="hidden" id="taskId">
+      <div class="field">
+        <label>عنوان المهمة</label>
+        <input type="text" id="taskTitle" required placeholder="مثال: استخراج السجل التجاري">
+      </div>
+      <div class="field">
+        <label>وصف مختصر (اختياري)</label>
+        <textarea id="taskDesc" placeholder="تفاصيل إضافية عن المهمة..."></textarea>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>المرحلة</label>
+          <select id="taskPhase"></select>
+        </div>
+        <div class="field">
+          <label>المسؤول عن التنفيذ</label>
+          <select id="taskAssignee"></select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>تاريخ الاستحقاق المستهدف</label>
+          <input type="date" id="taskDue" required>
+        </div>
+        <div class="field">
+          <label>الحالة</label>
+          <select id="taskStatus">
+            <option value="not_started">لم تبدأ</option>
+            <option value="in_progress">قيد التنفيذ</option>
+            <option value="done">منجزة</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="submit" class="btn-primary">حفظ المهمة</button>
+        <button type="button" class="btn-ghost" onclick="closeModal('taskOverlay')">إلغاء</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Member Modal -->
+<div class="overlay" id="memberOverlay">
+  <div class="modal">
+    <h3>إضافة عضو إلى فريق العمل</h3>
+    <p class="sub">أضف زميلًا جديدًا ليتمكن من إضافة مهام وتحمل مسؤولية تنفيذها.</p>
+    <form id="memberForm">
+      <div class="field">
+        <label>الاسم</label>
+        <input type="text" id="memberName" required placeholder="مثال: سارة العتيبي">
+      </div>
+      <div class="field">
+        <label>الدور / المسمى</label>
+        <input type="text" id="memberRole" placeholder="مثال: مسؤول التسويق">
+      </div>
+      <div class="field">
+        <label>لون التمييز</label>
+        <div class="swatches" id="colorSwatches"></div>
+        <input type="hidden" id="memberColor">
+      </div>
+      <div class="modal-actions">
+        <button type="submit" class="btn-primary">إضافة العضو</button>
+        <button type="button" class="btn-ghost" onclick="closeModal('memberOverlay')">إلغاء</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -152,6 +152,9 @@
   /* ---------- Task table ---------- */
   .task-toolbar{display:flex; justify-content:space-between; align-items:center; margin:22px 0 12px; gap:10px; flex-wrap:wrap;}
   .task-toolbar h3{margin:0; font-size:1.25rem; color:var(--ink);}
+  .task-toolbar-actions{display:flex; align-items:center; gap:12px; flex-wrap:wrap;}
+  .filter-label{display:flex; align-items:center; gap:6px; font-size:.82rem; color:var(--ink-soft); white-space:nowrap;}
+  .filter-label select{font-size:.85rem; padding:6px 8px;}
   .task-list{display:flex; flex-direction:column; gap:10px;}
   .task-card{
     background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-m);
@@ -196,7 +199,10 @@
   .member-card{
     background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-m);
     padding:14px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:8px;
+    cursor:pointer; transition:border-color .15s ease, box-shadow .15s ease;
   }
+  .member-card:hover{border-color:var(--brass);}
+  .member-card.active{border-color:var(--teal); box-shadow:0 0 0 2px rgba(47,111,98,.18);}
   .member-top{display:flex; align-items:center; gap:10px;}
   .member-tools{display:flex; gap:2px; flex-shrink:0;}
   .member-tools .btn-icon{padding:3px 5px; font-size:.82rem;}
@@ -312,7 +318,12 @@
   <section>
     <div class="task-toolbar">
       <h3 id="taskListTitle">كل المهام</h3>
-      <button class="btn-primary" id="addTaskBtn">+ إضافة مهمة جديدة</button>
+      <div class="task-toolbar-actions">
+        <label class="filter-label">تصفية حسب العضو:
+          <select id="memberFilterSelect"></select>
+        </label>
+        <button class="btn-primary" id="addTaskBtn">+ إضافة مهمة جديدة</button>
+      </div>
     </div>
     <div class="task-list" id="taskList"></div>
   </section>

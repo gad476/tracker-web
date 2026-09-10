@@ -190,6 +190,7 @@ function setCurrentUser(id){
 }
 
 let activePhase = 'all';
+let activeMemberFilter = 'all';
 let statusChart, memberChart;
 
 /* ---------- Derived helpers ---------- */
@@ -361,13 +362,28 @@ function renderTimeline(){
 function renderTaskList(){
   const title = document.getElementById('taskListTitle');
   const phaseObj = phaseById(activePhase);
-  title.textContent = phaseObj ? `مهام مرحلة: ${phaseObj.name}` : 'كل المهام';
 
-  const list = tasksForPhase(activePhase).slice().sort((a,b)=> (a.due||'').localeCompare(b.due||''));
+  // تعبئة قائمة تصفية الأعضاء (مع الحفاظ على الاختيار الحالي إن كان لا يزال صالحًا)
+  const memberSel = document.getElementById('memberFilterSelect');
+  const prevSelection = activeMemberFilter;
+  memberSel.innerHTML = `<option value="all">كل الأعضاء</option>` +
+    state.members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+  if(prevSelection!=='all' && !memberById(prevSelection)) activeMemberFilter = 'all';
+  memberSel.value = activeMemberFilter;
+  memberSel.onchange = ()=>{ activeMemberFilter = memberSel.value; renderTaskList(); };
+
+  const titleParts = [];
+  titleParts.push(phaseObj ? `مرحلة: ${phaseObj.name}` : 'كل المراحل');
+  if(activeMemberFilter!=='all') titleParts.push(`العضو: ${memberName(activeMemberFilter)}`);
+  title.textContent = titleParts.length>1 ? titleParts.join(' — ') : (phaseObj ? `مهام مرحلة: ${phaseObj.name}` : 'كل المهام');
+
+  let list = tasksForPhase(activePhase);
+  if(activeMemberFilter!=='all') list = list.filter(t=>t.assignee===activeMemberFilter);
+  list = list.slice().sort((a,b)=> (a.due||'').localeCompare(b.due||''));
   const el = document.getElementById('taskList');
 
   if(!list.length){
-    el.innerHTML = `<div class="empty-state">لا توجد مهام هنا بعد — اضغط "إضافة مهمة جديدة" لبدء تسجيل الخطوات.</div>`;
+    el.innerHTML = `<div class="empty-state">لا توجد مهام تطابق هذه التصفية بعد.</div>`;
     return;
   }
 
@@ -463,7 +479,7 @@ function renderTeam(){
     const pct = completionPct(assigned);
     const added = state.tasks.filter(t=>t.addedBy===m.id).length;
     return `
-    <div class="member-card">
+    <div class="member-card ${activeMemberFilter===m.id?'active':''}" data-member-id="${m.id}" title="اضغط لعرض مهام هذا العضو فقط">
       <div class="member-top">
         <span class="avatar" style="background:${m.color}">${initials(m.name)}</span>
         <div style="flex:1; min-width:0;">
@@ -484,11 +500,22 @@ function renderTeam(){
     </div>`;
   }).join('');
 
+  el.querySelectorAll('.member-card').forEach(card=>{
+    card.onclick = (e)=>{
+      if(e.target.closest('[data-member-action]')) return;
+      const id = card.dataset.memberId;
+      activeMemberFilter = (activeMemberFilter===id) ? 'all' : id;
+      renderTaskList();
+      renderTeam();
+      const titleEl = document.getElementById('taskListTitle');
+      if(titleEl.scrollIntoView) titleEl.scrollIntoView({behavior:'smooth', block:'center'});
+    };
+  });
   el.querySelectorAll('[data-member-action="edit"]').forEach(btn=>{
-    btn.onclick = ()=>openMemberModal(btn.dataset.memberId);
+    btn.onclick = (e)=>{ e.stopPropagation(); openMemberModal(btn.dataset.memberId); };
   });
   el.querySelectorAll('[data-member-action="delete"]').forEach(btn=>{
-    btn.onclick = ()=>deleteMember(btn.dataset.memberId);
+    btn.onclick = (e)=>{ e.stopPropagation(); deleteMember(btn.dataset.memberId); };
   });
 }
 

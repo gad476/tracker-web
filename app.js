@@ -525,6 +525,11 @@ function renderTeam(){
 function renderTeamCompare(){
   if(typeof Chart === 'undefined'){
     console.warn('تعذّر رسم لوحة مقارنة الفريق: مكتبة Chart.js لم تُحمّل.');
+    const fallback = `<div class="empty-state" style="height:100%; display:flex; align-items:center; justify-content:center; padding:12px;">تعذّر تحميل مكتبة الرسم البياني</div>`;
+    ['memberPctChart','memberCountChart','memberDelayChart'].forEach(id=>{
+      const canvas = document.getElementById(id);
+      if(canvas && canvas.parentElement) canvas.parentElement.innerHTML = fallback;
+    });
     return;
   }
   const labels = state.members.map(m=>m.name);

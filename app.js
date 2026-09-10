@@ -199,12 +199,14 @@ function completionPct(list){
    RENDER
    ========================================================= */
 function renderAll(){
-  renderCurrentUserSelect();
-  renderDashboard();
-  renderTimeline();
-  renderTaskList();
-  renderTeam();
-  fillFormSelectors();
+  // كل قسم مُعزول في try/catch خاص به: فشل قسم واحد (كرسم بياني تعذّر تحميله)
+  // لن يمنع بعد الآن بقية الأقسام (المراحل، المهام، الفريق) من الظهور.
+  try{ renderCurrentUserSelect(); }catch(e){ console.error('renderCurrentUserSelect failed:', e); }
+  try{ renderDashboard(); }catch(e){ console.error('renderDashboard failed:', e); }
+  try{ renderTimeline(); }catch(e){ console.error('renderTimeline failed:', e); }
+  try{ renderTaskList(); }catch(e){ console.error('renderTaskList failed:', e); }
+  try{ renderTeam(); }catch(e){ console.error('renderTeam failed:', e); }
+  try{ fillFormSelectors(); }catch(e){ console.error('fillFormSelectors failed:', e); }
 }
 
 function renderCurrentUserSelect(){
@@ -269,16 +271,23 @@ function renderDashboard(){
   const lateCount = ongoingLate;
 
   const ctx = document.getElementById('statusChartCanvas');
-  if(statusChart) statusChart.destroy();
-  statusChart = new Chart(ctx, {
-    type:'doughnut',
-    data:{
-      labels:['منجزة','قيد التنفيذ','لم تبدأ','متأخرة'],
-      datasets:[{ data:[doneCount, inProgress, notStarted, lateCount],
-        backgroundColor:['#3F7D5C','#C99A46','#B7B9AC','#A6472F'], borderWidth:0 }]
-    },
-    options:{ plugins:{legend:{display:false}, tooltip:{rtl:true}}, cutout:'62%' }
-  });
+  try{
+    if(typeof Chart === 'undefined') throw new Error('مكتبة Chart.js لم تُحمّل (رابط CDN محجوب أو تعذّر الاتصال)');
+    if(statusChart) statusChart.destroy();
+    statusChart = new Chart(ctx, {
+      type:'doughnut',
+      data:{
+        labels:['منجزة','قيد التنفيذ','لم تبدأ','متأخرة'],
+        datasets:[{ data:[doneCount, inProgress, notStarted, lateCount],
+          backgroundColor:['#3F7D5C','#C99A46','#B7B9AC','#A6472F'], borderWidth:0 }]
+      },
+      options:{ plugins:{legend:{display:false}, tooltip:{rtl:true}}, cutout:'62%' }
+    });
+  }catch(e){
+    console.warn('تعذّر رسم الرسم البياني الدائري:', e.message);
+    const chartCard = ctx ? ctx.closest('.chart-card') : null;
+    if(chartCard) chartCard.style.display = 'none';
+  }
 }
 
 function renderTimeline(){

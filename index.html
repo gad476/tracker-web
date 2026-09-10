@@ -159,6 +159,18 @@
   .task-meta .assignee{display:flex; align-items:center; gap:6px;}
   .task-actions{display:flex; flex-direction:column; gap:6px; align-items:flex-end; justify-content:space-between;}
   .task-actions .row{display:flex; gap:6px;}
+  .progress-row{display:flex; align-items:center; gap:10px; margin-top:6px;}
+  .progress-row input[type=range]{
+    flex:1; max-width:260px; accent-color:var(--teal); height:4px; cursor:pointer;
+  }
+  .progress-row .progress-num{font-size:.78rem; font-weight:700; color:var(--teal-deep); min-width:34px;}
+
+  .history-list{display:flex; flex-direction:column; gap:12px; max-height:360px; overflow-y:auto; margin:6px 0 4px;}
+  .history-item{display:flex; gap:10px; align-items:flex-start;}
+  .history-text{font-size:.85rem;}
+  .history-note{color:var(--ink-soft);}
+  .history-date{color:var(--ink-soft); font-size:.76rem; margin-top:2px;}
+
   .empty-state{
     border:1px dashed var(--line); border-radius:var(--radius-m); padding:34px; text-align:center;
     color:var(--ink-soft); font-size:.92rem; background:var(--paper);
@@ -290,9 +302,9 @@
   </section>
 
   <footer class="note">
-    تُحفظ البيانات محليًا في متصفحك (localStorage) — هذا يناسب الاستخدام الفردي أو العرض التجريبي فورًا بعد النشر على GitHub Pages.
-    لمشاركة نفس البيانات بين أعضاء الفريق على أجهزة مختلفة، استخدم زر <code>تصدير البيانات</code> لتنزيل ملف JSON ومشاركته (مثلاً برفعه إلى المستودع)، ثم يستخدم بقية الأعضاء زر <code>استيراد</code> لتحميله.
-    لمزامنة حيّة تلقائية بين الجميع دون تصدير/استيراد يدوي، يلزم ربط الصفحة بقاعدة بيانات خارجية مثل Firebase — راجع ملف README.md في المستودع لخطوات إضافة ذلك لاحقًا.
+    تُحفظ بيانات المهام وفريق العمل في قاعدة بيانات Firebase المشتركة — أي تعديل من أي عضو يظهر تلقائيًا وفوريًا لدى بقية الفريق على كل الأجهزة (لاحظوا مؤشر <b>«● متزامن»</b> أعلى الصفحة). هوية <b>«أنت الآن»</b> فقط هي ما يُحفظ محليًا في متصفح كل شخص، حتى يحتفظ كل جهاز بهويته الخاصة.
+    زرّا <code>تصدير البيانات</code> و<code>استيراد</code> مخصصان الآن كنسخة احتياطية فقط: التصدير ينزّل نسخة كاملة من البيانات المشتركة، والاستيراد يستبدل بيانات الفريق بأكمله بمحتوى الملف المستورد — استخدموه بحذر.
+    لتفاصيل الإعداد والأمان راجعوا ملف README.md في المستودع.
   </footer>
 </div>
 
@@ -327,12 +339,8 @@
           <input type="date" id="taskDue" required>
         </div>
         <div class="field">
-          <label>الحالة</label>
-          <select id="taskStatus">
-            <option value="not_started">لم تبدأ</option>
-            <option value="in_progress">قيد التنفيذ</option>
-            <option value="done">منجزة</option>
-          </select>
+          <label>نسبة الإنجاز: <span id="taskProgressNum">0%</span></label>
+          <input type="range" id="taskProgress" min="0" max="100" step="5" value="0" style="margin-top:10px;">
         </div>
       </div>
       <div class="modal-actions">
@@ -367,6 +375,18 @@
         <button type="button" class="btn-ghost" onclick="closeModal('memberOverlay')">إلغاء</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- History Modal -->
+<div class="overlay" id="historyOverlay">
+  <div class="modal">
+    <h3>سجل الإجراءات</h3>
+    <p class="sub" id="historyTaskTitle" style="font-weight:600; color:var(--ink);"></p>
+    <div class="history-list" id="historyList"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost" onclick="closeModal('historyOverlay')">إغلاق</button>
+    </div>
   </div>
 </div>
 

@@ -33,18 +33,51 @@ function daysBetween(a,b){
   const A = new Date(a+'T00:00:00'), B = new Date(b+'T00:00:00');
   return Math.round((B-A)/86400000);
 }
+function fmtDateTime(iso){
+  if(!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleString('ar-EG-u-nu-latn', {year:'numeric', month:'short', day:'numeric', hour:'numeric', minute:'2-digit'});
+}
+
+/* ---------- progress → status (single source of truth is task.progress, 0-100) ---------- */
+function taskStatus(t){
+  const p = t.progress || 0;
+  if(p >= 100) return 'done';
+  if(p <= 0) return 'not_started';
+  return 'in_progress';
+}
+
+/* ---------- activity log ---------- */
+const ACTION_LABELS = {
+  created:'أنشأ المهمة', edited:'عدّل بيانات المهمة', progress:'حدّث نسبة الإنجاز',
+  completed:'أنجز المهمة', reopened:'أعاد فتح المهمة',
+};
+function logAction(task, action, note){
+  if(!task.history) task.history = [];
+  task.history.push({ action, by: currentUser, at: new Date().toISOString(), note: note || '' });
+}
+
+/* ---------- migrate legacy tasks (from before the progress-slider model) ---------- */
+function migrateTask(t){
+  if(typeof t.progress !== 'number'){
+    t.progress = t.status==='done' ? 100 : t.status==='in_progress' ? 50 : 0;
+  }
+  if(!t.history) t.history = [];
+  return t;
+}
 
 /* ---------- Default seed data (first run only) ---------- */
 function seedData(){
   const members = [
     { id:'m1', name:'مدير المشروع', role:'الإدارة العامة', color:COLORS[0] },
   ];
+  const mk = (over)=>({ history:[{action:'created', by:'m1', at:new Date(over.dateAdded+'T09:00:00').toISOString(), note:''}], ...over });
   const tasks = [
-    { id:uid('t'), phase:'p1', title:'دراسة السوق العقاري المستهدف', desc:'تحليل حجم السوق والمنافسين والفرص في المناطق المستهدفة.', assignee:'m1', addedBy:'m1', dateAdded: shiftDate(-20), due: shiftDate(-8), status:'done', completedDate: shiftDate(-9), completedBy:'m1' },
-    { id:uid('t'), phase:'p1', title:'إعداد دراسة الجدوى المالية', desc:'تقدير التكاليف التأسيسية والتشغيلية ونقطة التعادل.', assignee:'m1', addedBy:'m1', dateAdded: shiftDate(-20), due: shiftDate(-2), status:'done', completedDate: shiftDate(2), completedBy:'m1' },
-    { id:uid('t'), phase:'p2', title:'استخراج السجل التجاري والترخيص العقاري', desc:'استكمال إجراءات الترخيص لدى الجهات المختصة.', assignee:'m1', addedBy:'m1', dateAdded: shiftDate(-14), due: shiftDate(5), status:'in_progress', completedDate:null, completedBy:null },
-    { id:uid('t'), phase:'p3', title:'تصميم قاعدة بيانات العقارات', desc:'نمذجة بيانات الوحدات والعملاء والعقود.', assignee:'m1', addedBy:'m1', dateAdded: shiftDate(-10), due: shiftDate(10), status:'not_started', completedDate:null, completedBy:null },
-    { id:uid('t'), phase:'p5', title:'تصميم الهوية البصرية للمنصة', desc:'الشعار والألوان ودليل الاستخدام.', assignee:'m1', addedBy:'m1', dateAdded: shiftDate(-6), due: shiftDate(6), status:'not_started', completedDate:null, completedBy:null },
+    mk({ id:uid('t'), phase:'p1', title:'دراسة السوق العقاري المستهدف', desc:'تحليل حجم السوق والمنافسين والفرص في المناطق المستهدفة.', assignee:'m1', addedBy:'m1', dateAdded: shiftDate(-20), due: shiftDate(-8), progress:100, completedDate: shiftDate(-9), completedBy:'m1' }),
+    mk({ id:uid('t'), phase:'p1', title:'إعداد دراسة الجدوى المالية', desc:'تقدير التكاليف التأسيسية والتشغيلية ونقطة التعادل.', assignee:'m1', addedBy:'m1', dateAdded: shiftDate(-20), due: shiftDate(-2), progress:100, completedDate: shiftDate(2), completedBy:'m1' }),
+    mk({ id:uid('t'), phase:'p2', title:'استخراج السجل التجاري والترخيص العقاري', desc:'استكمال إجراءات الترخيص لدى الجهات المختصة.', assignee:'m1', addedBy:'m1', dateAdded: shiftDate(-14), due: shiftDate(5), progress:40, completedDate:null, completedBy:null }),
+    mk({ id:uid('t'), phase:'p3', title:'تصميم قاعدة بيانات العقارات', desc:'نمذجة بيانات الوحدات والعملاء والعقود.', assignee:'m1', addedBy:'m1', dateAdded: shiftDate(-10), due: shiftDate(10), progress:0, completedDate:null, completedBy:null }),
+    mk({ id:uid('t'), phase:'p5', title:'تصميم الهوية البصرية للمنصة', desc:'الشعار والألوان ودليل الاستخدام.', assignee:'m1', addedBy:'m1', dateAdded: shiftDate(-6), due: shiftDate(6), progress:0, completedDate:null, completedBy:null }),
   ];
   return { members, tasks };
 }
@@ -92,7 +125,7 @@ function initFirestore(){
   docRef.onSnapshot(snap=>{
     if(snap.exists){
       const data = snap.data();
-      state = { members: data.members || [], tasks: data.tasks || [] };
+      state = { members: data.members || [], tasks: (data.tasks || []).map(migrateTask) };
     } else {
       state = seedData();
       docRef.set(state).catch(e=>console.error('تعذر إنشاء البيانات الأولية', e));
@@ -144,7 +177,7 @@ function memberName(id){ const m = memberById(id); return m ? m.name : '—'; }
 
 function taskDelayInfo(t){
   // returns {lateDays, isLate, isOngoingLate}
-  if(t.status === 'done'){
+  if(taskStatus(t) === 'done'){
     const d = daysBetween(t.due, t.completedDate);
     return { lateDays: Math.max(d,0), isLate: d>0, isOngoingLate:false };
   }
@@ -157,8 +190,9 @@ function tasksForPhase(phaseId){
 }
 
 function completionPct(list){
+  // نسبة الإنجاز الكلية = متوسط نسبة إنجاز كل مهمة (وليس فقط عدد المهام المنجزة بالكامل)
   if(!list.length) return 0;
-  return Math.round(100 * list.filter(t=>t.status==='done').length / list.length);
+  return Math.round(list.reduce((s,t)=>s+(t.progress||0),0) / list.length);
 }
 
 /* =========================================================
@@ -195,17 +229,16 @@ function escapeHtml(s){
 function renderDashboard(){
   const el = document.getElementById('dashboard');
   const total = state.tasks.length;
-  const done = state.tasks.filter(t=>t.status==='done').length;
-  const late = state.tasks.filter(t=>taskDelayInfo(t).isLate).length;
+  const done = state.tasks.filter(t=>taskStatus(t)==='done').length;
   const ongoingLate = state.tasks.filter(t=>taskDelayInfo(t).isOngoingLate).length;
-  const pct = total ? Math.round(100*done/total) : 0;
-  const closedWithDue = state.tasks.filter(t=>t.status==='done');
+  const pct = completionPct(state.tasks);
+  const closedWithDue = state.tasks.filter(t=>taskStatus(t)==='done');
   const avgDelay = closedWithDue.length ? Math.round(closedWithDue.reduce((s,t)=>s+taskDelayInfo(t).lateDays,0)/closedWithDue.length) : 0;
 
   el.innerHTML = `
     <div class="stat-card">
       <div class="num">${pct}%</div>
-      <div class="lbl">نسبة الإنجاز الكلي (${done} من ${total})</div>
+      <div class="lbl">نسبة الإنجاز الكلي (متوسط إنجاز ${total} مهمة)</div>
     </div>
     <div class="stat-card">
       <div class="num">${state.members.length}</div>
@@ -230,8 +263,8 @@ function renderDashboard(){
     </div>
   `;
 
-  const notStarted = state.tasks.filter(t=>t.status==='not_started' && !taskDelayInfo(t).isOngoingLate).length;
-  const inProgress = state.tasks.filter(t=>t.status==='in_progress' && !taskDelayInfo(t).isOngoingLate).length;
+  const notStarted = state.tasks.filter(t=>taskStatus(t)==='not_started' && !taskDelayInfo(t).isOngoingLate).length;
+  const inProgress = state.tasks.filter(t=>taskStatus(t)==='in_progress' && !taskDelayInfo(t).isOngoingLate).length;
   const doneCount = done;
   const lateCount = ongoingLate;
 
@@ -290,10 +323,12 @@ function renderTaskList(){
   el.innerHTML = list.map(t=>{
     const delay = taskDelayInfo(t);
     const assignee = memberById(t.assignee);
-    const statusLabel = {not_started:'لم تبدأ', in_progress:'قيد التنفيذ', done:'منجزة'}[t.status];
-    let badges = `<span class="badge ${t.status}">${statusLabel}</span>`;
+    const st = taskStatus(t);
+    const progress = t.progress || 0;
+    const statusLabel = {not_started:'لم تبدأ', in_progress:'قيد التنفيذ', done:'منجزة'}[st];
+    let badges = `<span class="badge ${st}">${statusLabel} · ${progress}%</span>`;
     if(delay.isOngoingLate) badges += `<span class="badge late">متأخرة ${delay.lateDays} يوم</span>`;
-    if(t.status==='done' && delay.isLate) badges += `<span class="badge late">أُنجزت متأخرة ${delay.lateDays} يوم</span>`;
+    if(st==='done' && delay.isLate) badges += `<span class="badge late">أُنجزت متأخرة ${delay.lateDays} يوم</span>`;
 
     return `
     <div class="task-card" data-id="${t.id}">
@@ -309,13 +344,18 @@ function renderTaskList(){
           <span>الاستحقاق: <b>${fmtDate(t.due)}</b></span>
           <span>الإنجاز: <b>${t.completedDate ? fmtDate(t.completedDate) + (t.completedBy? ' — بواسطة '+escapeHtml(memberName(t.completedBy)) : '') : '—'}</b></span>
         </div>
+        <div class="progress-row">
+          <input type="range" class="progress-slider" min="0" max="100" step="5" value="${progress}" data-id="${t.id}">
+          <span class="progress-num">${progress}%</span>
+        </div>
       </div>
       <div class="task-actions">
         <div class="row">
+          <button class="btn-icon" data-action="history" title="سجل الإجراءات">🕘</button>
           <button class="btn-icon" data-action="edit" title="تعديل">✎</button>
           <button class="btn-icon" data-action="delete" title="حذف">✕</button>
         </div>
-        ${t.status!=='done' ? `<button class="btn-primary btn-sm" data-action="complete">تمييز كمُنجزة</button>` : `<button class="btn-ghost btn-sm" data-action="reopen">إعادة فتح</button>`}
+        ${st!=='done' ? `<button class="btn-primary btn-sm" data-action="complete">تمييز كمُنجزة</button>` : `<button class="btn-ghost btn-sm" data-action="reopen">إعادة فتح</button>`}
       </div>
     </div>`;
   }).join('');
@@ -323,6 +363,7 @@ function renderTaskList(){
   el.querySelectorAll('.task-card').forEach(card=>{
     const id = card.dataset.id;
     card.querySelector('[data-action="edit"]').onclick = ()=>openTaskModal(id);
+    card.querySelector('[data-action="history"]').onclick = ()=>openHistoryModal(id);
     card.querySelector('[data-action="delete"]').onclick = ()=>{
       if(confirm('حذف هذه المهمة نهائيًا؟')){
         state.tasks = state.tasks.filter(t=>t.id!==id);
@@ -332,15 +373,30 @@ function renderTaskList(){
     const completeBtn = card.querySelector('[data-action="complete"]');
     if(completeBtn) completeBtn.onclick = ()=>{
       const t = state.tasks.find(t=>t.id===id);
-      t.status = 'done'; t.completedDate = todayISO(); t.completedBy = currentUser;
+      t.progress = 100; t.completedDate = todayISO(); t.completedBy = currentUser;
+      logAction(t, 'completed');
       persist(); renderAll();
     };
     const reopenBtn = card.querySelector('[data-action="reopen"]');
     if(reopenBtn) reopenBtn.onclick = ()=>{
       const t = state.tasks.find(t=>t.id===id);
-      t.status = 'in_progress'; t.completedDate = null; t.completedBy = null;
+      t.progress = 50; t.completedDate = null; t.completedBy = null;
+      logAction(t, 'reopened');
       persist(); renderAll();
     };
+    const slider = card.querySelector('.progress-slider');
+    const numLbl = card.querySelector('.progress-num');
+    slider.addEventListener('input', ()=>{ numLbl.textContent = slider.value + '%'; });
+    slider.addEventListener('change', ()=>{
+      const t = state.tasks.find(t=>t.id===id);
+      const wasDone = taskStatus(t)==='done';
+      t.progress = Number(slider.value);
+      logAction(t, 'progress', `${t.progress}%`);
+      const nowDone = taskStatus(t)==='done';
+      if(nowDone && !wasDone){ t.completedDate = todayISO(); t.completedBy = currentUser; logAction(t,'completed'); }
+      if(!nowDone && wasDone){ t.completedDate = null; t.completedBy = null; logAction(t,'reopened'); }
+      persist(); renderAll();
+    });
   });
 }
 
@@ -348,8 +404,8 @@ function renderTeam(){
   const el = document.getElementById('teamGrid');
   el.innerHTML = state.members.map(m=>{
     const assigned = state.tasks.filter(t=>t.assignee===m.id);
-    const done = assigned.filter(t=>t.status==='done').length;
-    const pct = assigned.length ? Math.round(100*done/assigned.length) : 0;
+    const done = assigned.filter(t=>taskStatus(t)==='done').length;
+    const pct = completionPct(assigned);
     const added = state.tasks.filter(t=>t.addedBy===m.id).length;
     return `
     <div class="member-card">
@@ -397,14 +453,19 @@ function openTaskModal(editId){
     document.getElementById('taskPhase').value = t.phase;
     document.getElementById('taskAssignee').value = t.assignee;
     document.getElementById('taskDue').value = t.due;
-    document.getElementById('taskStatus').value = t.status;
+    document.getElementById('taskProgress').value = t.progress || 0;
+    document.getElementById('taskProgressNum').textContent = (t.progress||0) + '%';
   } else {
     document.getElementById('taskPhase').value = activePhase!=='all' ? activePhase : PHASES[0].id;
     document.getElementById('taskDue').value = shiftDate(7);
-    document.getElementById('taskStatus').value = 'not_started';
+    document.getElementById('taskProgress').value = 0;
+    document.getElementById('taskProgressNum').textContent = '0%';
   }
   openModal('taskOverlay');
 }
+document.getElementById('taskProgress').addEventListener('input', e=>{
+  document.getElementById('taskProgressNum').textContent = e.target.value + '%';
+});
 
 document.getElementById('addTaskBtn').onclick = ()=>openTaskModal(null);
 
@@ -417,21 +478,27 @@ document.getElementById('taskForm').addEventListener('submit', e=>{
     phase: document.getElementById('taskPhase').value,
     assignee: document.getElementById('taskAssignee').value,
     due: document.getElementById('taskDue').value,
-    status: document.getElementById('taskStatus').value,
+    progress: Number(document.getElementById('taskProgress').value),
   };
   if(id){
     const t = state.tasks.find(t=>t.id===id);
+    const wasDone = taskStatus(t)==='done';
     Object.assign(t, data);
-    if(data.status==='done' && !t.completedDate){ t.completedDate = todayISO(); t.completedBy = currentUser; }
-    if(data.status!=='done'){ t.completedDate = null; t.completedBy = null; }
+    logAction(t, 'edited');
+    const nowDone = taskStatus(t)==='done';
+    if(nowDone && !wasDone){ t.completedDate = todayISO(); t.completedBy = currentUser; logAction(t,'completed'); }
+    if(!nowDone && wasDone){ t.completedDate = null; t.completedBy = null; logAction(t,'reopened'); }
   } else {
-    state.tasks.push({
+    const t = {
       id: uid('t'), ...data,
       addedBy: currentUser,
       dateAdded: todayISO(),
-      completedDate: data.status==='done' ? todayISO() : null,
-      completedBy: data.status==='done' ? currentUser : null,
-    });
+      completedDate: data.progress>=100 ? todayISO() : null,
+      completedBy: data.progress>=100 ? currentUser : null,
+      history: [],
+    };
+    logAction(t, 'created');
+    state.tasks.push(t);
   }
   persist(); renderAll();
   closeModal('taskOverlay');
@@ -467,6 +534,26 @@ document.getElementById('memberForm').addEventListener('submit', e=>{
 document.querySelectorAll('.overlay').forEach(ov=>{
   ov.addEventListener('click', e=>{ if(e.target===ov) closeModal(ov.id); });
 });
+
+function openHistoryModal(taskId){
+  const t = state.tasks.find(t=>t.id===taskId);
+  const list = document.getElementById('historyList');
+  document.getElementById('historyTaskTitle').textContent = t.title;
+  const entries = (t.history || []).slice().sort((a,b)=> new Date(b.at) - new Date(a.at));
+  if(!entries.length){
+    list.innerHTML = `<div class="empty-state">لا يوجد سجل إجراءات لهذه المهمة بعد.</div>`;
+  } else {
+    list.innerHTML = entries.map(h=>`
+      <div class="history-item">
+        <span class="avatar" style="width:26px;height:26px;font-size:.7rem;background:${memberById(h.by)?memberById(h.by).color:'#999'}">${memberById(h.by)?initials(memberById(h.by).name):'?'}</span>
+        <div class="history-text">
+          <div><b>${escapeHtml(memberName(h.by))}</b> — ${ACTION_LABELS[h.action] || h.action}${h.note?` <span class="history-note">(${escapeHtml(h.note)})</span>`:''}</div>
+          <div class="history-date">${fmtDateTime(h.at)}</div>
+        </div>
+      </div>`).join('');
+  }
+  openModal('historyOverlay');
+}
 
 /* =========================================================
    EXPORT / IMPORT (manual sync between team members)

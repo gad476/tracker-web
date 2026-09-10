@@ -192,6 +192,7 @@ function setCurrentUser(id){
 let activePhase = 'all';
 let activeMemberFilter = 'all';
 let statusChart, memberChart;
+let memberPctChart, memberCountChart, memberDelayChart;
 
 /* ---------- Derived helpers ---------- */
 function memberById(id){ return state.members.find(m=>m.id===id); }
@@ -229,6 +230,7 @@ function renderAll(){
   try{ renderTimeline(); }catch(e){ console.error('renderTimeline failed:', e); }
   try{ renderTaskList(); }catch(e){ console.error('renderTaskList failed:', e); }
   try{ renderTeam(); }catch(e){ console.error('renderTeam failed:', e); }
+  try{ renderTeamCompare(); }catch(e){ console.error('renderTeamCompare failed:', e); }
   try{ fillFormSelectors(); }catch(e){ console.error('fillFormSelectors failed:', e); }
 }
 
@@ -517,6 +519,98 @@ function renderTeam(){
   el.querySelectorAll('[data-member-action="delete"]').forEach(btn=>{
     btn.onclick = (e)=>{ e.stopPropagation(); deleteMember(btn.dataset.memberId); };
   });
+}
+
+/* ---------- Team comparison dashboard (per-member charts) ---------- */
+function renderTeamCompare(){
+  if(typeof Chart === 'undefined'){
+    console.warn('تعذّر رسم لوحة مقارنة الفريق: مكتبة Chart.js لم تُحمّل.');
+    return;
+  }
+  const labels = state.members.map(m=>m.name);
+
+  // --- بيانات لكل عضو ---
+  const rows = state.members.map(m=>{
+    const assigned = state.tasks.filter(t=>t.assignee===m.id);
+    const doneList = assigned.filter(t=>taskStatus(t)==='done');
+    const inProgressCount = assigned.filter(t=>taskStatus(t)==='in_progress').length;
+    const notStartedCount = assigned.filter(t=>taskStatus(t)==='not_started').length;
+    const avgDelay = doneList.length
+      ? Math.round(doneList.reduce((s,t)=>s+taskDelayInfo(t).lateDays,0)/doneList.length)
+      : 0;
+    return {
+      member: m,
+      pct: completionPct(assigned),
+      done: doneList.length,
+      inProgress: inProgressCount,
+      notStarted: notStartedCount,
+      avgDelay,
+    };
+  });
+
+  /* 1) نسبة الإنجاز لكل عضو — مرتّبة تنازليًا لسهولة المقارنة */
+  try{
+    const sorted = rows.slice().sort((a,b)=> b.pct - a.pct);
+    const ctx = document.getElementById('memberPctChart');
+    if(memberPctChart) memberPctChart.destroy();
+    memberPctChart = new Chart(ctx, {
+      type:'bar',
+      data:{
+        labels: sorted.map(r=>r.member.name),
+        datasets:[{ data: sorted.map(r=>r.pct), backgroundColor: sorted.map(r=>r.member.color), borderRadius:4 }],
+      },
+      options:{
+        indexAxis:'y',
+        responsive:true, maintainAspectRatio:false,
+        scales:{ x:{ min:0, max:100, ticks:{ callback:v=>v+'%' } } },
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:c=>c.parsed.x+'% إنجاز' } } },
+      }
+    });
+  }catch(e){ console.warn('تعذّر رسم مخطط نسبة الإنجاز', e); }
+
+  /* 2) عدد المهام حسب الحالة لكل عضو — أعمدة مكدّسة */
+  try{
+    const ctx = document.getElementById('memberCountChart');
+    if(memberCountChart) memberCountChart.destroy();
+    memberCountChart = new Chart(ctx, {
+      type:'bar',
+      data:{
+        labels,
+        datasets:[
+          { label:'منجزة', data: rows.map(r=>r.done), backgroundColor:'#3F7D5C', borderRadius:3 },
+          { label:'قيد التنفيذ', data: rows.map(r=>r.inProgress), backgroundColor:'#C99A46', borderRadius:3 },
+          { label:'لم تبدأ', data: rows.map(r=>r.notStarted), backgroundColor:'#B7B9AC', borderRadius:3 },
+        ],
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        scales:{ x:{ stacked:true }, y:{ stacked:true, ticks:{ precision:0 } } },
+        plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, font:{size:10} } } },
+      }
+    });
+  }catch(e){ console.warn('تعذّر رسم مخطط عدد المهام', e); }
+
+  /* 3) متوسط أيام التأخير لكل عضو */
+  try{
+    const ctx = document.getElementById('memberDelayChart');
+    if(memberDelayChart) memberDelayChart.destroy();
+    memberDelayChart = new Chart(ctx, {
+      type:'bar',
+      data:{
+        labels,
+        datasets:[{
+          data: rows.map(r=>r.avgDelay),
+          backgroundColor: rows.map(r=> r.avgDelay>0 ? '#A6472F' : '#3F7D5C'),
+          borderRadius:4,
+        }],
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } },
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:c=> c.parsed.y+' يوم تأخير بالمتوسط' } } },
+      }
+    });
+  }catch(e){ console.warn('تعذّر رسم مخطط التأخير', e); }
 }
 
 function fillFormSelectors(){

@@ -193,6 +193,17 @@
     color:var(--ink-soft); font-size:.92rem; background:var(--paper);
   }
 
+  /* ---------- Team comparison dashboard ---------- */
+  section.compare{margin-bottom:36px;}
+  .compare-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:16px;}
+  .compare-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-l);
+    padding:16px 18px; box-shadow:var(--shadow);
+  }
+  .compare-card h4{margin:0 0 12px; font-size:.95rem; color:var(--teal-deep); font-family:'IBM Plex Sans Arabic',sans-serif; font-weight:700;}
+  .chart-wrap{position:relative; height:220px;}
+  .chart-wrap canvas{width:100% !important; height:100% !important;}
+
   /* ---------- Team ---------- */
   section.team{margin-bottom:36px;}
   .team-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(210px,1fr)); gap:14px;}
@@ -335,6 +346,28 @@
       <button class="btn-brass btn-sm" id="addMemberBtn">+ إضافة عضو</button>
     </div>
     <div class="team-grid" id="teamGrid"></div>
+  </section>
+
+  <!-- Team comparison dashboard -->
+  <section class="compare">
+    <div class="section-head">
+      <h2>لوحة مقارنة الفريق</h2>
+      <span class="hint">مقارنة سريعة لأداء كل عضو: نسبة الإنجاز، عدد المهام حسب الحالة، ومتوسط التأخير</span>
+    </div>
+    <div class="compare-grid">
+      <div class="compare-card">
+        <h4>نسبة الإنجاز لكل عضو</h4>
+        <div class="chart-wrap"><canvas id="memberPctChart"></canvas></div>
+      </div>
+      <div class="compare-card">
+        <h4>عدد المهام حسب الحالة لكل عضو</h4>
+        <div class="chart-wrap"><canvas id="memberCountChart"></canvas></div>
+      </div>
+      <div class="compare-card">
+        <h4>متوسط أيام التأخير لكل عضو (للمهام المنجزة)</h4>
+        <div class="chart-wrap"><canvas id="memberDelayChart"></canvas></div>
+      </div>
+    </div>
   </section>
 
   <footer class="note">

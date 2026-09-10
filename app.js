@@ -9,17 +9,6 @@
 
 const LOCAL_USER_KEY = 'rp_current_user_v1';
 
-const PHASES = [
-  { id:'p1', name:'الدراسة والتخطيط' },
-  { id:'p2', name:'التأسيس القانوني' },
-  { id:'p3', name:'البنية التقنية للمنصة' },
-  { id:'p4', name:'بناء الفريق' },
-  { id:'p5', name:'العلامة والتسويق' },
-  { id:'p6', name:'تشغيل الوساطة العقارية' },
-  { id:'p7', name:'الإطلاق' },
-  { id:'p8', name:'ما بعد الإطلاق والتطوير' },
-];
-
 const COLORS = ['#2F6F62','#B08D57','#A6472F','#3F7D5C','#6C5B7B','#1C6E8C','#8C6D3F','#4B5B57'];
 
 function uid(prefix){ return prefix + '_' + Math.random().toString(36).slice(2,9); }
@@ -66,20 +55,43 @@ function migrateTask(t){
   return t;
 }
 
-/* ---------- Default seed data (first run only) ---------- */
+/* ---------- Default / reset data: مرحلة واحدة تحتوي على المهام المطلوبة حاليًا ----------
+   تُستخدم عند إنشاء قاعدة بيانات جديدة تمامًا، وأيضًا مرة واحدة تلقائيًا لأي
+   قاعدة بيانات قديمة لا تحتوي على حقل "phases" (أي أُنشئت قبل إضافة ميزة
+   إدارة المراحل) — لتفريغ المراحل والمهام القديمة والبدء بمرحلة واحدة فقط. */
+function buildFreshPhaseAndTasks(existingMembers){
+  const fallback = (existingMembers && existingMembers[0]) ? existingMembers[0].id : 'm1';
+  const phases = [{ id: uid('p'), name:'المرحلة الأولى' }];
+  const pid = phases[0].id;
+  const mk = (title, desc)=>{
+    const now = new Date().toISOString();
+    return {
+      id: uid('t'), phase: pid, title, desc: desc || '',
+      assignee: fallback, addedBy: fallback,
+      dateAdded: todayISO(), due: shiftDate(14), progress: 0,
+      completedDate: null, completedBy: null,
+      history: [{ action:'created', by: fallback, at: now, note:'' }],
+    };
+  };
+  const tasks = [
+    mk('اختيار أربعة أسماء مقترحة للشركة', 'تمهيدًا لاستخراج شهادة عدم التباس من الهيئة العامة للاستثمار.'),
+    mk('استخراج شهادة عدم التباس من الهيئة العامة للاستثمار'),
+    mk('إنشاء صفحات الشركة على منصات التواصل الاجتماعي'),
+    mk('تحديد الهيكل والخطة الأولية للشركة', 'اختصاصات فريق العمل وتقسيم المسؤوليات، الرؤية الاستراتيجية، الخدمات المقدَّمة، المشاكل التي تُحل للعملاء، النفقات المطلوبة، ومصادر الإيرادات — خطة مبدئية قابلة للتعديل.'),
+    mk('الترويج للشركة', 'على منصات التواصل الاجتماعي وعلى الأرض.'),
+    mk('إنشاء وإطلاق منصة الشركة الإلكترونية'),
+    mk('جمع بيانات السوق', 'بيانات عن الوحدات العقارية والمشترين المحتملين.'),
+    mk('تجهيز المقر'),
+  ];
+  return { phases, tasks };
+}
+
 function seedData(){
   const members = [
     { id:'m1', name:'مدير المشروع', role:'الإدارة العامة', color:COLORS[0] },
   ];
-  const mk = (over)=>({ history:[{action:'created', by:'m1', at:new Date(over.dateAdded+'T09:00:00').toISOString(), note:''}], ...over });
-  const tasks = [
-    mk({ id:uid('t'), phase:'p1', title:'دراسة السوق العقاري المستهدف', desc:'تحليل حجم السوق والمنافسين والفرص في المناطق المستهدفة.', assignee:'m1', addedBy:'m1', dateAdded: shiftDate(-20), due: shiftDate(-8), progress:100, completedDate: shiftDate(-9), completedBy:'m1' }),
-    mk({ id:uid('t'), phase:'p1', title:'إعداد دراسة الجدوى المالية', desc:'تقدير التكاليف التأسيسية والتشغيلية ونقطة التعادل.', assignee:'m1', addedBy:'m1', dateAdded: shiftDate(-20), due: shiftDate(-2), progress:100, completedDate: shiftDate(2), completedBy:'m1' }),
-    mk({ id:uid('t'), phase:'p2', title:'استخراج السجل التجاري والترخيص العقاري', desc:'استكمال إجراءات الترخيص لدى الجهات المختصة.', assignee:'m1', addedBy:'m1', dateAdded: shiftDate(-14), due: shiftDate(5), progress:40, completedDate:null, completedBy:null }),
-    mk({ id:uid('t'), phase:'p3', title:'تصميم قاعدة بيانات العقارات', desc:'نمذجة بيانات الوحدات والعملاء والعقود.', assignee:'m1', addedBy:'m1', dateAdded: shiftDate(-10), due: shiftDate(10), progress:0, completedDate:null, completedBy:null }),
-    mk({ id:uid('t'), phase:'p5', title:'تصميم الهوية البصرية للمنصة', desc:'الشعار والألوان ودليل الاستخدام.', assignee:'m1', addedBy:'m1', dateAdded: shiftDate(-6), due: shiftDate(6), progress:0, completedDate:null, completedBy:null }),
-  ];
-  return { members, tasks };
+  const { phases, tasks } = buildFreshPhaseAndTasks(members);
+  return { members, phases, tasks };
 }
 function shiftDate(days){
   const d = new Date();
@@ -88,7 +100,7 @@ function shiftDate(days){
 }
 
 /* ---------- Shared state (Firestore) ---------- */
-let state = { members: [], tasks: [] };
+let state = { members: [], phases: [], tasks: [] };
 let currentUser = localStorage.getItem(LOCAL_USER_KEY) || null;
 let dataReady = false;
 let docRef = null;
@@ -125,7 +137,16 @@ function initFirestore(){
   docRef.onSnapshot(snap=>{
     if(snap.exists){
       const data = snap.data();
-      state = { members: data.members || [], tasks: (data.tasks || []).map(migrateTask) };
+      if(!data.phases){
+        // مستند قديم من قبل إضافة إدارة المراحل — تفريغ تلقائي لمرة واحدة
+        // إلى مرحلة واحدة بالمهام المطلوبة حاليًا، مع الإبقاء على أعضاء الفريق الحاليين.
+        const members = data.members || [];
+        const fresh = buildFreshPhaseAndTasks(members);
+        state = { members, phases: fresh.phases, tasks: fresh.tasks };
+        docRef.set(state).catch(e=>console.error('تعذر حفظ إعادة التعيين', e));
+      } else {
+        state = { members: data.members || [], phases: data.phases || [], tasks: (data.tasks || []).map(migrateTask) };
+      }
     } else {
       state = seedData();
       docRef.set(state).catch(e=>console.error('تعذر إنشاء البيانات الأولية', e));
@@ -174,6 +195,7 @@ let statusChart, memberChart;
 /* ---------- Derived helpers ---------- */
 function memberById(id){ return state.members.find(m=>m.id===id); }
 function memberName(id){ const m = memberById(id); return m ? m.name : '—'; }
+function phaseById(id){ return state.phases.find(p=>p.id===id); }
 
 function taskDelayInfo(t){
   // returns {lateDays, isLate, isOngoingLate}
@@ -293,32 +315,52 @@ function renderDashboard(){
 function renderTimeline(){
   const el = document.getElementById('timeline');
   const allChip = `
-    <div class="phase-chip ${activePhase==='all'?'active':''}" data-phase="all">
+    <div class="phase-chip all-chip ${activePhase==='all'?'active':''}" data-phase="all">
       <span class="idx">•</span>
       <div class="name">كل المراحل</div>
       <div class="phase-bar"><i style="width:${completionPct(state.tasks)}%"></i></div>
       <span class="pct">${completionPct(state.tasks)}% منجز</span>
     </div>`;
-  const chips = PHASES.map((p,i)=>{
+  const chips = state.phases.map((p,i)=>{
     const list = tasksForPhase(p.id);
     const pct = completionPct(list);
     return `
       <div class="phase-chip ${activePhase===p.id?'active':''}" data-phase="${p.id}">
+        <div class="phase-chip-tools">
+          <button class="btn-icon" data-phase-action="edit" data-phase-id="${p.id}" title="تعديل اسم المرحلة">✎</button>
+          <button class="btn-icon" data-phase-action="delete" data-phase-id="${p.id}" title="حذف المرحلة">✕</button>
+        </div>
         <span class="idx">${i+1}</span>
         <div class="name">${escapeHtml(p.name)}</div>
         <div class="phase-bar"><i style="width:${pct}%"></i></div>
         <span class="pct">${pct}% منجز · ${list.length} مهمة</span>
       </div>`;
   }).join('');
-  el.innerHTML = allChip + chips;
-  el.querySelectorAll('.phase-chip').forEach(chip=>{
-    chip.onclick = ()=>{ activePhase = chip.dataset.phase; renderTimeline(); renderTaskList(); };
+  const addChip = `
+    <button class="phase-chip add-phase-chip" id="addPhaseChip" type="button">
+      <span class="add-plus">+</span>
+      <div class="name">إضافة مرحلة</div>
+    </button>`;
+  el.innerHTML = allChip + chips + addChip;
+
+  el.querySelectorAll('.phase-chip[data-phase]').forEach(chip=>{
+    chip.onclick = (e)=>{
+      if(e.target.closest('[data-phase-action]')) return;
+      activePhase = chip.dataset.phase; renderTimeline(); renderTaskList();
+    };
   });
+  el.querySelectorAll('[data-phase-action="edit"]').forEach(btn=>{
+    btn.onclick = (e)=>{ e.stopPropagation(); openPhaseModal(btn.dataset.phaseId); };
+  });
+  el.querySelectorAll('[data-phase-action="delete"]').forEach(btn=>{
+    btn.onclick = (e)=>{ e.stopPropagation(); deletePhase(btn.dataset.phaseId); };
+  });
+  document.getElementById('addPhaseChip').onclick = ()=>openPhaseModal(null);
 }
 
 function renderTaskList(){
   const title = document.getElementById('taskListTitle');
-  const phaseObj = PHASES.find(p=>p.id===activePhase);
+  const phaseObj = phaseById(activePhase);
   title.textContent = phaseObj ? `مهام مرحلة: ${phaseObj.name}` : 'كل المهام';
 
   const list = tasksForPhase(activePhase).slice().sort((a,b)=> (a.due||'').localeCompare(b.due||''));
@@ -420,9 +462,13 @@ function renderTeam(){
     <div class="member-card">
       <div class="member-top">
         <span class="avatar" style="background:${m.color}">${initials(m.name)}</span>
-        <div>
+        <div style="flex:1; min-width:0;">
           <div class="member-name">${escapeHtml(m.name)}</div>
           <div class="member-role">${escapeHtml(m.role||'—')}</div>
+        </div>
+        <div class="member-tools">
+          <button class="btn-icon" data-member-action="edit" data-member-id="${m.id}" title="تعديل">✎</button>
+          <button class="btn-icon" data-member-action="delete" data-member-id="${m.id}" title="حذف">✕</button>
         </div>
       </div>
       <div class="member-stats">
@@ -433,11 +479,18 @@ function renderTeam(){
       </div>
     </div>`;
   }).join('');
+
+  el.querySelectorAll('[data-member-action="edit"]').forEach(btn=>{
+    btn.onclick = ()=>openMemberModal(btn.dataset.memberId);
+  });
+  el.querySelectorAll('[data-member-action="delete"]').forEach(btn=>{
+    btn.onclick = ()=>deleteMember(btn.dataset.memberId);
+  });
 }
 
 function fillFormSelectors(){
   const phaseSel = document.getElementById('taskPhase');
-  phaseSel.innerHTML = PHASES.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+  phaseSel.innerHTML = state.phases.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
   const assigneeSel = document.getElementById('taskAssignee');
   assigneeSel.innerHTML = state.members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
 }
@@ -465,7 +518,7 @@ function openTaskModal(editId){
     document.getElementById('taskProgress').value = t.progress || 0;
     document.getElementById('taskProgressNum').textContent = (t.progress||0) + '%';
   } else {
-    document.getElementById('taskPhase').value = activePhase!=='all' ? activePhase : PHASES[0].id;
+    document.getElementById('taskPhase').value = (activePhase!=='all' && phaseById(activePhase)) ? activePhase : (state.phases[0] ? state.phases[0].id : '');
     document.getElementById('taskDue').value = shiftDate(7);
     document.getElementById('taskProgress').value = 0;
     document.getElementById('taskProgressNum').textContent = '0%';
@@ -476,7 +529,10 @@ document.getElementById('taskProgress').addEventListener('input', e=>{
   document.getElementById('taskProgressNum').textContent = e.target.value + '%';
 });
 
-document.getElementById('addTaskBtn').onclick = ()=>openTaskModal(null);
+document.getElementById('addTaskBtn').onclick = ()=>{
+  if(!state.phases.length){ alert('أضف مرحلة واحدة على الأقل أولًا قبل إضافة مهمة.'); return; }
+  openTaskModal(null);
+};
 
 document.getElementById('taskForm').addEventListener('submit', e=>{
   e.preventDefault();
@@ -513,11 +569,13 @@ document.getElementById('taskForm').addEventListener('submit', e=>{
   closeModal('taskOverlay');
 });
 
-/* Member modal */
-document.getElementById('addMemberBtn').onclick = ()=>{
+/* Member modal (add + edit) */
+function openMemberModal(editId){
   const sw = document.getElementById('colorSwatches');
-  sw.innerHTML = COLORS.map((c,i)=>`<span class="swatch ${i===0?'sel':''}" style="background:${c}" data-color="${c}"></span>`).join('');
-  document.getElementById('memberColor').value = COLORS[0];
+  const existing = editId ? memberById(editId) : null;
+  const currentColor = existing ? existing.color : COLORS[state.members.length % COLORS.length];
+  sw.innerHTML = COLORS.map(c=>`<span class="swatch ${c===currentColor?'sel':''}" style="background:${c}" data-color="${c}"></span>`).join('');
+  document.getElementById('memberColor').value = currentColor;
   sw.querySelectorAll('.swatch').forEach(s=>{
     s.onclick = ()=>{
       sw.querySelectorAll('.swatch').forEach(x=>x.classList.remove('sel'));
@@ -526,19 +584,91 @@ document.getElementById('addMemberBtn').onclick = ()=>{
     };
   });
   document.getElementById('memberForm').reset();
+  document.getElementById('memberId').value = editId || '';
+  document.querySelector('#memberOverlay h3').textContent = editId ? 'تعديل بيانات العضو' : 'إضافة عضو إلى فريق العمل';
+  document.querySelector('#memberOverlay button[type="submit"]').textContent = editId ? 'حفظ التعديلات' : 'إضافة العضو';
+  if(existing){
+    document.getElementById('memberName').value = existing.name;
+    document.getElementById('memberRole').value = existing.role || '';
+  }
   openModal('memberOverlay');
-};
+}
+document.getElementById('addMemberBtn').onclick = ()=>openMemberModal(null);
 
 document.getElementById('memberForm').addEventListener('submit', e=>{
   e.preventDefault();
+  const id = document.getElementById('memberId').value;
   const name = document.getElementById('memberName').value.trim();
   const role = document.getElementById('memberRole').value.trim();
   const color = document.getElementById('memberColor').value || COLORS[state.members.length % COLORS.length];
   if(!name) return;
-  state.members.push({ id: uid('m'), name, role, color });
+  if(id){
+    const m = memberById(id);
+    Object.assign(m, { name, role, color });
+  } else {
+    state.members.push({ id: uid('m'), name, role, color });
+  }
   persist(); renderAll();
   closeModal('memberOverlay');
 });
+
+function deleteMember(id){
+  if(state.members.length <= 1){
+    alert('يجب أن يبقى عضو واحد على الأقل في فريق العمل.');
+    return;
+  }
+  const assignedCount = state.tasks.filter(t=>t.assignee===id || t.addedBy===id).length;
+  const m = memberById(id);
+  const warn = assignedCount
+    ? `هذا العضو مرتبط بـ${assignedCount} مهمة (كمسؤول تنفيذ أو مُضيف). حذفه لن يحذف هذه المهام، لكن اسمه سيظهر كـ"—" فيها. `
+    : '';
+  if(confirm(`${warn}هل تريد حذف "${m.name}" من فريق العمل؟`)){
+    state.members = state.members.filter(m=>m.id!==id);
+    persist(); renderAll();
+  }
+}
+
+/* Phase modal (add + edit) */
+function openPhaseModal(editId){
+  const existing = editId ? phaseById(editId) : null;
+  document.getElementById('phaseForm').reset();
+  document.getElementById('phaseId').value = editId || '';
+  document.getElementById('phaseModalTitle').textContent = editId ? 'تعديل اسم المرحلة' : 'إضافة مرحلة جديدة';
+  if(existing) document.getElementById('phaseName').value = existing.name;
+  openModal('phaseOverlay');
+}
+
+document.getElementById('phaseForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const id = document.getElementById('phaseId').value;
+  const name = document.getElementById('phaseName').value.trim();
+  if(!name) return;
+  if(id){
+    const p = phaseById(id);
+    p.name = name;
+  } else {
+    state.phases.push({ id: uid('p'), name });
+  }
+  persist(); renderAll();
+  closeModal('phaseOverlay');
+});
+
+function deletePhase(id){
+  if(state.phases.length <= 1){
+    alert('يجب أن تبقى مرحلة واحدة على الأقل.');
+    return;
+  }
+  const p = phaseById(id);
+  const count = tasksForPhase(id).length;
+  const warn = count
+    ? `تحتوي هذه المرحلة على ${count} مهمة. حذف المرحلة لن يحذفها، لكنها لن تظهر ضمن أي مرحلة محددة بعد الآن (ستبقى ظاهرة ضمن "كل المراحل"). `
+    : '';
+  if(confirm(`${warn}هل تريد حذف مرحلة "${p.name}"؟`)){
+    state.phases = state.phases.filter(p=>p.id!==id);
+    if(activePhase===id) activePhase = 'all';
+    persist(); renderAll();
+  }
+}
 
 document.querySelectorAll('.overlay').forEach(ov=>{
   ov.addEventListener('click', e=>{ if(e.target===ov) closeModal(ov.id); });
@@ -584,9 +714,17 @@ document.getElementById('importFile').addEventListener('change', e=>{
   reader.onload = ()=>{
     try{
       const incoming = JSON.parse(reader.result);
-      if(!incoming.tasks || !incoming.members) throw new Error('صيغة غير صحيحة');
-      if(confirm('سيؤدي الاستيراد إلى استبدال البيانات المشتركة الحالية لكل أعضاء الفريق (وليس هذا المتصفح فقط). هل تريد المتابعة؟')){
-        state = { members: incoming.members, tasks: incoming.tasks };
+      if(!incoming.tasks && !incoming.members && !incoming.phases) throw new Error('صيغة غير صحيحة');
+      const parts = [];
+      if(incoming.members) parts.push('أعضاء الفريق');
+      if(incoming.phases) parts.push('المراحل');
+      if(incoming.tasks) parts.push('المهام');
+      if(confirm(`سيستبدل هذا الملف: ${parts.join('، ')} — لكل أعضاء الفريق (وليس هذا المتصفح فقط). أي جزء غير موجود في الملف يبقى كما هو حاليًا. هل تريد المتابعة؟`)){
+        state = {
+          members: incoming.members || state.members,
+          phases: incoming.phases || state.phases,
+          tasks: incoming.tasks || state.tasks,
+        };
         persist(); renderAll();
       }
     }catch(err){

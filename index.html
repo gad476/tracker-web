@@ -119,9 +119,11 @@
   .section-head h2{font-size:1.6rem; margin:0; color:var(--teal-deep);}
   .section-head .hint{font-size:.85rem; color:var(--ink-soft);}
 
-  .timeline{display:flex; gap:10px; overflow-x:auto; padding-bottom:10px; scrollbar-width:thin;}
+  .timeline{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:10px;
+  }
   .phase-chip{
-    flex:0 0 auto; min-width:168px; background:var(--surface); border:1px solid var(--line);
+    background:var(--surface); border:1px solid var(--line);
     border-radius:var(--radius-m); padding:12px 14px; cursor:pointer; position:relative;
     transition:border-color .15s ease, box-shadow .15s ease;
   }
@@ -130,10 +132,22 @@
   .phase-chip .idx{
     font-family:'Markazi Text',serif; font-weight:700; font-size:1.1rem; color:var(--brass-deep);
   }
-  .phase-chip .name{font-size:.86rem; font-weight:600; margin:3px 0 8px; color:var(--ink);}
+  .phase-chip .name{font-size:.86rem; font-weight:600; margin:3px 0 8px; color:var(--ink); padding-inline-end:44px;}
   .phase-bar{height:5px; border-radius:3px; background:var(--line); overflow:hidden;}
   .phase-bar > i{display:block; height:100%; background:var(--teal); border-radius:3px;}
   .phase-chip .pct{font-size:.72rem; color:var(--ink-soft); margin-top:5px; display:block;}
+  .phase-chip-tools{
+    position:absolute; top:10px; inset-inline-end:10px; display:flex; gap:2px;
+  }
+  .phase-chip-tools .btn-icon{padding:2px 4px; font-size:.82rem;}
+  .add-phase-chip{
+    background:var(--paper); border:1px dashed var(--line); border-radius:var(--radius-m);
+    padding:12px 14px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:2px; color:var(--ink-soft); min-height:78px;
+  }
+  .add-phase-chip:hover{border-color:var(--brass); color:var(--brass-deep);}
+  .add-phase-chip .add-plus{font-size:1.4rem; font-weight:700; line-height:1;}
+  .add-phase-chip .name{font-size:.82rem; font-weight:600; margin:0;}
 
   /* ---------- Task table ---------- */
   .task-toolbar{display:flex; justify-content:space-between; align-items:center; margin:22px 0 12px; gap:10px; flex-wrap:wrap;}
@@ -184,6 +198,8 @@
     padding:14px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:8px;
   }
   .member-top{display:flex; align-items:center; gap:10px;}
+  .member-tools{display:flex; gap:2px; flex-shrink:0;}
+  .member-tools .btn-icon{padding:3px 5px; font-size:.82rem;}
   .member-top .avatar{width:38px; height:38px; font-size:.95rem;}
   .member-name{font-weight:700; font-size:.95rem;}
   .member-role{font-size:.76rem; color:var(--ink-soft);}
@@ -230,6 +246,7 @@
     .task-card{grid-template-columns:1fr;}
     .task-actions{flex-direction:row; align-items:center;}
     .field-row{grid-template-columns:1fr;}
+    .timeline{grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));}
   }
 </style>
 </head>
@@ -278,7 +295,7 @@
   <section class="phases">
     <div class="section-head">
       <h2>مراحل المشروع</h2>
-      <span class="hint">اختر مرحلة لعرض مهامها — أو اترك "كل المراحل" لعرض الجميع</span>
+      <span class="hint">اختر مرحلة لعرض مهامها — أو اترك "كل المراحل" لعرض الجميع. استخدم ✎ أو ✕ على أي مرحلة لتعديلها أو حذفها.</span>
     </div>
     <div class="timeline" id="timeline"></div>
   </section>
@@ -303,7 +320,7 @@
 
   <footer class="note">
     تُحفظ بيانات المهام وفريق العمل في قاعدة بيانات Firebase المشتركة — أي تعديل من أي عضو يظهر تلقائيًا وفوريًا لدى بقية الفريق على كل الأجهزة (لاحظوا مؤشر <b>«● متزامن»</b> أعلى الصفحة). هوية <b>«أنت الآن»</b> فقط هي ما يُحفظ محليًا في متصفح كل شخص، حتى يحتفظ كل جهاز بهويته الخاصة.
-    زرّا <code>تصدير البيانات</code> و<code>استيراد</code> مخصصان الآن كنسخة احتياطية فقط: التصدير ينزّل نسخة كاملة من البيانات المشتركة، والاستيراد يستبدل بيانات الفريق بأكمله بمحتوى الملف المستورد — استخدموه بحذر.
+    زرّا <code>تصدير البيانات</code> و<code>استيراد</code> نسخة احتياطية: التصدير ينزّل نسخة كاملة من البيانات المشتركة (الفريق، المراحل، المهام)، والاستيراد يستبدل فقط الأجزاء الموجودة في الملف المستورد ويُبقي الباقي كما هو — استخدموه بحذر.
     لتفاصيل الإعداد والأمان راجعوا ملف README.md في المستودع.
   </footer>
 </div>
@@ -357,6 +374,7 @@
     <h3>إضافة عضو إلى فريق العمل</h3>
     <p class="sub">أضف زميلًا جديدًا ليتمكن من إضافة مهام وتحمل مسؤولية تنفيذها.</p>
     <form id="memberForm">
+      <input type="hidden" id="memberId">
       <div class="field">
         <label>الاسم</label>
         <input type="text" id="memberName" required placeholder="مثال: سارة العتيبي">
@@ -373,6 +391,24 @@
       <div class="modal-actions">
         <button type="submit" class="btn-primary">إضافة العضو</button>
         <button type="button" class="btn-ghost" onclick="closeModal('memberOverlay')">إلغاء</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Phase Modal -->
+<div class="overlay" id="phaseOverlay">
+  <div class="modal" style="max-width:420px;">
+    <h3 id="phaseModalTitle">إضافة مرحلة جديدة</h3>
+    <form id="phaseForm">
+      <input type="hidden" id="phaseId">
+      <div class="field">
+        <label>اسم المرحلة</label>
+        <input type="text" id="phaseName" required placeholder="مثال: التأسيس القانوني">
+      </div>
+      <div class="modal-actions">
+        <button type="submit" class="btn-primary">حفظ</button>
+        <button type="button" class="btn-ghost" onclick="closeModal('phaseOverlay')">إلغاء</button>
       </div>
     </form>
   </div>

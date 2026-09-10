@@ -380,6 +380,10 @@ function renderTaskList(){
     let badges = `<span class="badge ${st}">${statusLabel} · ${progress}%</span>`;
     if(delay.isOngoingLate) badges += `<span class="badge late">متأخرة ${delay.lateDays} يوم</span>`;
     if(st==='done' && delay.isLate) badges += `<span class="badge late">أُنجزت متأخرة ${delay.lateDays} يوم</span>`;
+    if(t.groupId){
+      const siblings = state.tasks.filter(x=>x.groupId===t.groupId).length;
+      badges += `<span class="task-group-badge">مهمة مشتركة (${siblings} أعضاء)</span>`;
+    }
 
     return `
     <div class="task-card" data-id="${t.id}">
@@ -495,6 +499,28 @@ function fillFormSelectors(){
   assigneeSel.innerHTML = state.members.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
 }
 
+function renderAssigneeChecklist(selectedIds){
+  const list = document.getElementById('assigneeList');
+  list.innerHTML = state.members.map(m=>`
+    <label class="assignee-item">
+      <input type="checkbox" class="assignee-checkbox" value="${m.id}" ${selectedIds.includes(m.id)?'checked':''}>
+      <span class="avatar" style="background:${m.color}">${initials(m.name)}</span>
+      ${escapeHtml(m.name)}
+    </label>`).join('');
+  syncSelectAllToggle();
+  list.querySelectorAll('.assignee-checkbox').forEach(cb=>{
+    cb.addEventListener('change', syncSelectAllToggle);
+  });
+}
+function syncSelectAllToggle(){
+  const boxes = document.querySelectorAll('.assignee-checkbox');
+  const allChecked = boxes.length>0 && Array.from(boxes).every(b=>b.checked);
+  document.getElementById('assigneeAllToggle').checked = allChecked;
+}
+document.getElementById('assigneeAllToggle').addEventListener('change', e=>{
+  document.querySelectorAll('.assignee-checkbox').forEach(cb=>{ cb.checked = e.target.checked; });
+});
+
 /* =========================================================
    MODALS
    ========================================================= */
@@ -508,7 +534,11 @@ function openTaskModal(editId){
   form.reset();
   document.getElementById('taskId').value = editId || '';
   document.getElementById('taskModalTitle').textContent = editId ? 'تعديل المهمة' : 'إضافة مهمة جديدة';
+  const singleWrap = document.getElementById('taskAssigneeSingleWrap');
+  const multiWrap = document.getElementById('taskAssigneeMultiWrap');
   if(editId){
+    singleWrap.style.display = '';
+    multiWrap.style.display = 'none';
     const t = state.tasks.find(t=>t.id===editId);
     document.getElementById('taskTitle').value = t.title;
     document.getElementById('taskDesc').value = t.desc||'';
@@ -518,6 +548,9 @@ function openTaskModal(editId){
     document.getElementById('taskProgress').value = t.progress || 0;
     document.getElementById('taskProgressNum').textContent = (t.progress||0) + '%';
   } else {
+    singleWrap.style.display = 'none';
+    multiWrap.style.display = '';
+    renderAssigneeChecklist([]);
     document.getElementById('taskPhase').value = (activePhase!=='all' && phaseById(activePhase)) ? activePhase : (state.phases[0] ? state.phases[0].id : '');
     document.getElementById('taskDue').value = shiftDate(7);
     document.getElementById('taskProgress').value = 0;
@@ -537,33 +570,37 @@ document.getElementById('addTaskBtn').onclick = ()=>{
 document.getElementById('taskForm').addEventListener('submit', e=>{
   e.preventDefault();
   const id = document.getElementById('taskId').value;
-  const data = {
+  const base = {
     title: document.getElementById('taskTitle').value.trim(),
     desc: document.getElementById('taskDesc').value.trim(),
     phase: document.getElementById('taskPhase').value,
-    assignee: document.getElementById('taskAssignee').value,
     due: document.getElementById('taskDue').value,
     progress: Number(document.getElementById('taskProgress').value),
   };
   if(id){
     const t = state.tasks.find(t=>t.id===id);
     const wasDone = taskStatus(t)==='done';
-    Object.assign(t, data);
+    Object.assign(t, base, { assignee: document.getElementById('taskAssignee').value });
     logAction(t, 'edited');
     const nowDone = taskStatus(t)==='done';
     if(nowDone && !wasDone){ t.completedDate = todayISO(); t.completedBy = currentUser; logAction(t,'completed'); }
     if(!nowDone && wasDone){ t.completedDate = null; t.completedBy = null; logAction(t,'reopened'); }
   } else {
-    const t = {
-      id: uid('t'), ...data,
-      addedBy: currentUser,
-      dateAdded: todayISO(),
-      completedDate: data.progress>=100 ? todayISO() : null,
-      completedBy: data.progress>=100 ? currentUser : null,
-      history: [],
-    };
-    logAction(t, 'created');
-    state.tasks.push(t);
+    const selectedIds = Array.from(document.querySelectorAll('.assignee-checkbox:checked')).map(cb=>cb.value);
+    if(!selectedIds.length){ alert('اختر عضوًا واحدًا على الأقل مسؤولًا عن هذه المهمة.'); return; }
+    const groupId = selectedIds.length > 1 ? uid('grp') : null;
+    selectedIds.forEach(memberId=>{
+      const t = {
+        id: uid('t'), ...base, assignee: memberId, groupId,
+        addedBy: currentUser,
+        dateAdded: todayISO(),
+        completedDate: base.progress>=100 ? todayISO() : null,
+        completedBy: base.progress>=100 ? currentUser : null,
+        history: [],
+      };
+      logAction(t, 'created');
+      state.tasks.push(t);
+    });
   }
   persist(); renderAll();
   closeModal('taskOverlay');

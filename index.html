@@ -231,6 +231,14 @@
   .swatch{width:26px; height:26px; border-radius:50%; cursor:pointer; border:2px solid transparent;}
   .swatch.sel{border-color:var(--ink);}
 
+  .assignee-picker{border:1px solid var(--line); border-radius:var(--radius-s); background:var(--paper); padding:8px 10px;}
+  .assignee-check-all{display:flex; align-items:center; gap:6px; font-size:.85rem; font-weight:600; padding-bottom:6px; margin-bottom:6px; border-bottom:1px solid var(--line); cursor:pointer;}
+  .assignee-list{display:flex; flex-direction:column; gap:4px; max-height:160px; overflow-y:auto;}
+  .assignee-item{display:flex; align-items:center; gap:8px; font-size:.86rem; padding:3px 2px; cursor:pointer; border-radius:4px;}
+  .assignee-item:hover{background:var(--surface);}
+  .assignee-item .avatar{width:20px; height:20px; font-size:.6rem;}
+  .task-group-badge{background:#EDE7F6; color:#6C5B7B; font-size:.72rem; font-weight:600; padding:3px 10px; border-radius:999px; white-space:nowrap;}
+
   footer.note{
     margin-top:40px; padding-top:18px; border-top:1px solid var(--line); font-size:.8rem;
     color:var(--ink-soft); line-height:1.8;
@@ -345,9 +353,18 @@
           <label>المرحلة</label>
           <select id="taskPhase"></select>
         </div>
-        <div class="field">
+        <div class="field" id="taskAssigneeSingleWrap">
           <label>المسؤول عن التنفيذ</label>
           <select id="taskAssignee"></select>
+        </div>
+        <div class="field" id="taskAssigneeMultiWrap" style="grid-column:1 / -1;">
+          <label>المسؤولون عن التنفيذ (يمكن اختيار أكثر من عضو — تُنشأ مهمة مستقلة لكل واحد منهم)</label>
+          <div class="assignee-picker">
+            <label class="assignee-check-all">
+              <input type="checkbox" id="assigneeAllToggle"> تحديد الجميع
+            </label>
+            <div class="assignee-list" id="assigneeList"></div>
+          </div>
         </div>
       </div>
       <div class="field-row">
